@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { THEMES, MONTHS, getDaysInMonth, parseDateKey, toDateKey, daysBetween } from "@/libs/calendarConstants";
+import { THEMES, MONTHS, getDaysInMonth, parseDateKey, daysBetween } from "@/libs/calendarConstants";
 
 export default function ReservationModal({
     showModal,
@@ -21,21 +21,23 @@ export default function ReservationModal({
     onDelete,
     onClose
 }) {
+    // Calculate duration - must be before any early returns (React hooks rule)
+    const duration = useMemo(() => {
+        if (!startDate || !endDate) return 1;
+        return daysBetween(startDate, endDate) + 1;
+    }, [startDate, endDate]);
+
+    // Early return after all hooks
     if (!showModal || !startDate) return null;
 
     const formatDate = (dateKey) => {
-        const [y, m, d] = dateKey.split("-").map(Number);
-        return new Date(y, m, d).toLocaleDateString("en-US", {
+        const [, m, d] = dateKey.split("-").map(Number);
+        return new Date(year, m, d).toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
             day: "numeric",
         });
     };
-
-    const duration = useMemo(() => {
-        if (!startDate || !endDate) return 1;
-        return daysBetween(startDate, endDate) + 1;
-    }, [startDate, endDate]);
 
     // Generate month/day options for pickers
     const monthOptions = MONTHS.map((name, idx) => ({ value: idx, label: name }));
@@ -45,14 +47,14 @@ export default function ReservationModal({
         return Array.from({ length: days }, (_, i) => i + 1);
     };
 
-    const parseStartDate = () => {
-        const [y, m, d] = startDate.split("-").map(Number);
-        return { month: m, day: d };
+    const parseStart = () => {
+        const parts = startDate.split("-").map(Number);
+        return { month: parts[1], day: parts[2] };
     };
 
-    const parseEndDate = () => {
-        const [y, m, d] = (endDate || startDate).split("-").map(Number);
-        return { month: m, day: d };
+    const parseEnd = () => {
+        const parts = (endDate || startDate).split("-").map(Number);
+        return { month: parts[1], day: parts[2] };
     };
 
     const handleStartChange = (month, day) => {
@@ -72,8 +74,8 @@ export default function ReservationModal({
         }
     };
 
-    const start = parseStartDate();
-    const end = parseEndDate();
+    const start = parseStart();
+    const end = parseEnd();
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
