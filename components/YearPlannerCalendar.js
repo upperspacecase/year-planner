@@ -1,94 +1,142 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
     MONTHS,
     QUARTERS,
     THEMES,
     DAY_LABELS,
-    LOCATION_PALETTE,
     getDaysInMonth,
     getDayOfWeek,
-    getInitialReservations
+    getInitialEvents,
+    getLocationColorMap,
+    getDateRange,
+    daysBetween,
+    generateEventId,
+    toDateKey,
+    parseDateKey
 } from "@/libs/calendarConstants";
 import ReservationModal from "./ReservationModal";
 
 export default function YearPlannerCalendar() {
     const currentYear = new Date().getFullYear();
     const [year] = useState(new Date().getMonth() >= 9 ? currentYear + 1 : currentYear);
-    const [reservations, setReservations] = useState(() => getInitialReservations(year));
+    const [events, setEvents] = useState(() => getInitialEvents(year));
     const [showModal, setShowModal] = useState(false);
-    const [modalDate, setModalDate] = useState(null);
-    const [reservationTitle, setReservationTitle] = useState("");
-    const [reservationLocation, setReservationLocation] = useState("");
+    const [editingEvent, setEditingEvent] = useState(null);
+    const [modalStartDate, setModalStartDate] = useState(null);
+
+    // Form state
+    const [eventTitle, setEventTitle] = useState("");
+    const [eventLocation, setEventLocation] = useState("");
     const [selectedTheme, setSelectedTheme] = useState("experiences");
+    const [eventEndDate, setEventEndDate] = useState(null);
 
     // Drag and Drop State
     const [dragOverDate, setDragOverDate] = useState(null);
-    const dragSourceRef = useRef({ sourceDateKey: null, reservation: null });
+    const dragSourceRef = useRef({ eventId: null, event: null, clickOffset: 0 });
 
     const today = new Date();
     const isCurrentYear = today.getFullYear() === year;
 
-    // Dynamic location color mapping
-    const locationColorMap = useMemo(() => {
-        const locations = Array.from(new Set(Object.values(reservations).map(r => r.location).filter(Boolean)));
+    // Stable location color mapping (sorted alphabetically)
+    const locationColorMap = useMemo(() => getLocationColorMap(events), [events]);
+
+    // Build a lookup: dateKey -> { event, position: 'start' | 'middle' | 'end' | 'single' }
+    const dateEventMap = useMemo(() => {
         const map = {};
-        locations.forEach((loc, index) => {
-            if (loc) {
-                map[loc] = LOCATION_PALETTE[index % LOCATION_PALETTE.length];
-            }
+        Object.values(events).forEach(event => {
+            const dates = getDateRange(event.startDate, event.endDate);
+            dates.forEach((dateKey, index) => {
+                let position = 'single';
+                if (dates.length > 1) {
+                    if (index === 0) position = 'start';
+                    else if (index === dates.length - 1) position = 'end';
+                    else position = 'middle';
+                }
+                map[dateKey] = { event, position };
+            });
         });
         return map;
-    }, [reservations]);
+    }, [events]);
 
     const handleDayClick = (dateKey) => {
-        setModalDate(dateKey);
-        const res = reservations[dateKey];
-        if (res) {
-            setReservationTitle(res.title);
-            setReservationLocation(res.location || "");
-            setSelectedTheme(res.theme);
+        const entry = dateEventMap[dateKey];
+        if (entry) {
+            // Edit existing event
+            setEditingEvent(entry.event);
+            setEventTitle(entry.event.title);
+            setEventLocation(entry.event.location || "");
+            setSelectedTheme(entry.event.theme);
+            setModalStartDate(entry.event.startDate);
+            setEventEndDate(entry.event.endDate);
         } else {
-            setReservationTitle("");
-            setReservationLocation("");
+            // New event
+            setEditingEvent(null);
+            setEventTitle("");
+            setEventLocation("");
             setSelectedTheme("experiences");
+            setModalStartDate(dateKey);
+            setEventEndDate(dateKey);
         }
         setShowModal(true);
     };
 
-    const handleSaveReservation = () => {
-        if (modalDate && reservationTitle.trim()) {
-            setReservations((prev) => ({
-                ...prev,
-                [modalDate]: {
-                    title: reservationTitle.trim(),
-                    theme: selectedTheme,
-                    location: reservationLocation.trim() || undefined
-                },
-            }));
-        }
-        setShowModal(false);
-        setModalDate(null);
+    const handleSaveEvent = () => {
+        if (!eventTitle.trim() || !modalStartDate) return;
+
+        const eventId = editingEvent?.id || generateEventId();
+        const newEvent = {
+            id: eventId,
+            title: eventTitle.trim(),
+            theme: selectedTheme,
+            location: eventLocation.trim() || undefined,
+            startDate: modalStartDate,
+            endDate: eventEndDate || modalStartDate
+        };
+
+        setEvents(prev => {
+            const updated = { ...prev };
+            if (editingEvent) {
+                delete updated[editingEvent.id];
+            }
+            updated[eventId] = newEvent;
+            return updated;
+        });
+
+        closeModal();
     };
 
-    const handleDeleteReservation = () => {
-        if (modalDate) {
-            setReservations((prev) => {
-                const newReservations = { ...prev };
-                delete newReservations[modalDate];
-                return newReservations;
+    const handleDeleteEvent = () => {
+        if (editingEvent) {
+            setEvents(prev => {
+                const updated = { ...prev };
+                delete updated[editingEvent.id];
+                return updated;
             });
         }
-        setShowModal(false);
-        setModalDate(null);
+        closeModal();
     };
 
-    const onDragStart = (e, dateKey) => {
-        const reservation = reservations[dateKey];
-        if (!reservation) return;
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingEvent(null);
+        setModalStartDate(null);
+        setEventEndDate(null);
+    };
 
-        dragSourceRef.current = { sourceDateKey: dateKey, reservation };
+    // Drag handlers - move entire event
+    const onDragStart = (e, dateKey) => {
+        const entry = dateEventMap[dateKey];
+        if (!entry) return;
+
+        // Calculate offset from start of event
+        const clickOffset = daysBetween(entry.event.startDate, dateKey);
+        dragSourceRef.current = {
+            eventId: entry.event.id,
+            event: entry.event,
+            clickOffset
+        };
         e.dataTransfer.effectAllowed = "move";
     };
 
@@ -105,22 +153,41 @@ export default function YearPlannerCalendar() {
 
     const onDrop = (e, destinationDateKey) => {
         e.preventDefault();
-        const { sourceDateKey, reservation } = dragSourceRef.current;
+        const { eventId, event, clickOffset } = dragSourceRef.current;
 
-        if (!reservation || !sourceDateKey || sourceDateKey === destinationDateKey) {
+        if (!event || !eventId) {
             setDragOverDate(null);
             return;
         }
 
-        setReservations((prev) => {
-            const updated = { ...prev };
-            delete updated[sourceDateKey];
-            updated[destinationDateKey] = reservation;
-            return updated;
-        });
+        // Calculate new start date based on where user dropped
+        const dropDate = parseDateKey(destinationDateKey);
+        dropDate.setDate(dropDate.getDate() - clickOffset);
+        const newStartDate = toDateKey(dropDate);
+
+        // Calculate duration and new end date
+        const duration = daysBetween(event.startDate, event.endDate);
+        const endDateObj = parseDateKey(newStartDate);
+        endDateObj.setDate(endDateObj.getDate() + duration);
+        const newEndDate = toDateKey(endDateObj);
+
+        // Don't update if nothing changed
+        if (newStartDate === event.startDate) {
+            setDragOverDate(null);
+            return;
+        }
+
+        setEvents(prev => ({
+            ...prev,
+            [eventId]: {
+                ...event,
+                startDate: newStartDate,
+                endDate: newEndDate
+            }
+        }));
 
         setDragOverDate(null);
-        dragSourceRef.current = { sourceDateKey: null, reservation: null };
+        dragSourceRef.current = { eventId: null, event: null, clickOffset: 0 };
     };
 
     return (
@@ -188,14 +255,22 @@ export default function YearPlannerCalendar() {
                                                             const dateKey = `${year}-${monthIndex}-${day}`;
                                                             const dayOfWeek = isValid ? getDayOfWeek(year, monthIndex, day) : -1;
                                                             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                                                            const reservation = reservations[dateKey];
+                                                            const entry = dateEventMap[dateKey];
+                                                            const event = entry?.event;
+                                                            const position = entry?.position;
                                                             const isToday = isCurrentYear && today.getMonth() === monthIndex && today.getDate() === day;
                                                             const isDragOver = dragOverDate === dateKey;
+
+                                                            // Rounded corners based on position
+                                                            let roundedClass = "rounded-sm";
+                                                            if (position === 'start') roundedClass = "rounded-l-md rounded-r-none";
+                                                            else if (position === 'end') roundedClass = "rounded-r-md rounded-l-none";
+                                                            else if (position === 'middle') roundedClass = "rounded-none";
 
                                                             return (
                                                                 <div
                                                                     key={dIdx}
-                                                                    draggable={isValid && !!reservation}
+                                                                    draggable={isValid && !!event}
                                                                     onDragStart={(e) => isValid && onDragStart(e, dateKey)}
                                                                     onDragOver={(e) => isValid && onDragOver(e, dateKey)}
                                                                     onDragLeave={onDragLeave}
@@ -203,27 +278,27 @@ export default function YearPlannerCalendar() {
                                                                     onClick={() => isValid && handleDayClick(dateKey)}
                                                                     className={`
                                     relative flex-1 aspect-[2/3] flex flex-col items-center justify-center
-                                    rounded-sm transition-all duration-300 overflow-hidden
+                                    ${roundedClass} transition-all duration-300 overflow-hidden
                                     ${isValid ? "cursor-pointer" : "bg-transparent opacity-0 pointer-events-none"}
-                                    ${isValid && !reservation ? (isWeekend ? "bg-stone-50/50" : "bg-stone-50/20 hover:bg-stone-100") : ""}
-                                    ${reservation ? `${THEMES[reservation.theme].color} ${THEMES[reservation.theme].borderColor} border shadow-sm` : "border border-stone-100/40"}
+                                    ${isValid && !event ? (isWeekend ? "bg-stone-50/50" : "bg-stone-50/20 hover:bg-stone-100") : ""}
+                                    ${event ? `${THEMES[event.theme].color} ${THEMES[event.theme].borderColor} border-y border-l ${position === 'end' || position === 'single' ? 'border-r' : ''} shadow-sm` : "border border-stone-100/40"}
                                     ${isDragOver ? "ring-2 ring-stone-400 ring-offset-1 z-10 scale-110" : ""}
                                     ${isToday ? "ring-1 ring-amber-400" : ""}
                                   `}
-                                                                    title={reservation ? `${reservation.title}${reservation.location ? ` @ ${reservation.location}` : ""}` : undefined}
+                                                                    title={event ? `${event.title}${event.location ? ` @ ${event.location}` : ""}` : undefined}
                                                                 >
                                                                     {isValid && (
                                                                         <span className={`
                                       text-[8px] font-bold z-10
-                                      ${reservation ? THEMES[reservation.theme].textColor : "text-stone-300"}
-                                      ${isToday && !reservation ? "text-amber-500" : ""}
+                                      ${event ? THEMES[event.theme].textColor : "text-stone-300"}
+                                      ${isToday && !event ? "text-amber-500" : ""}
                                     `}>
                                                                             {DAY_LABELS[dayOfWeek]}
                                                                         </span>
                                                                     )}
-                                                                    {reservation && reservation.location && (
+                                                                    {event && event.location && (
                                                                         <div
-                                                                            className={`absolute bottom-0 left-0 right-0 h-[3px] ${locationColorMap[reservation.location]}`}
+                                                                            className={`absolute bottom-0 left-0 right-0 h-[3px] ${locationColorMap[event.location]}`}
                                                                         />
                                                                     )}
                                                                 </div>
@@ -278,18 +353,21 @@ export default function YearPlannerCalendar() {
             {/* Reservation Modal */}
             <ReservationModal
                 showModal={showModal}
-                modalDate={modalDate}
                 year={year}
-                reservationTitle={reservationTitle}
-                setReservationTitle={setReservationTitle}
-                reservationLocation={reservationLocation}
-                setReservationLocation={setReservationLocation}
+                editingEvent={editingEvent}
+                eventTitle={eventTitle}
+                setEventTitle={setEventTitle}
+                eventLocation={eventLocation}
+                setEventLocation={setEventLocation}
                 selectedTheme={selectedTheme}
                 setSelectedTheme={setSelectedTheme}
-                reservations={reservations}
-                onSave={handleSaveReservation}
-                onDelete={handleDeleteReservation}
-                onClose={() => setShowModal(false)}
+                startDate={modalStartDate}
+                setStartDate={setModalStartDate}
+                endDate={eventEndDate}
+                setEndDate={setEventEndDate}
+                onSave={handleSaveEvent}
+                onDelete={handleDeleteEvent}
+                onClose={closeModal}
             />
         </div>
     );

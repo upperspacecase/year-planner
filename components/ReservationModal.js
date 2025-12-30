@@ -1,32 +1,79 @@
 "use client";
 
-import { THEMES } from "@/libs/calendarConstants";
+import { useMemo } from "react";
+import { THEMES, MONTHS, getDaysInMonth, parseDateKey, toDateKey, daysBetween } from "@/libs/calendarConstants";
 
 export default function ReservationModal({
     showModal,
-    modalDate,
     year,
-    reservationTitle,
-    setReservationTitle,
-    reservationLocation,
-    setReservationLocation,
+    editingEvent,
+    eventTitle,
+    setEventTitle,
+    eventLocation,
+    setEventLocation,
     selectedTheme,
     setSelectedTheme,
-    reservations,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
     onSave,
     onDelete,
     onClose
 }) {
-    if (!showModal || !modalDate) return null;
+    if (!showModal || !startDate) return null;
 
-    const formatDate = () => {
-        const [, m, d] = modalDate.split("-").map(Number);
-        return new Date(year, m, d).toLocaleDateString("en-US", {
-            weekday: "long",
-            month: "long",
+    const formatDate = (dateKey) => {
+        const [y, m, d] = dateKey.split("-").map(Number);
+        return new Date(y, m, d).toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
             day: "numeric",
         });
     };
+
+    const duration = useMemo(() => {
+        if (!startDate || !endDate) return 1;
+        return daysBetween(startDate, endDate) + 1;
+    }, [startDate, endDate]);
+
+    // Generate month/day options for pickers
+    const monthOptions = MONTHS.map((name, idx) => ({ value: idx, label: name }));
+
+    const getDayOptions = (monthIdx) => {
+        const days = getDaysInMonth(year, monthIdx);
+        return Array.from({ length: days }, (_, i) => i + 1);
+    };
+
+    const parseStartDate = () => {
+        const [y, m, d] = startDate.split("-").map(Number);
+        return { month: m, day: d };
+    };
+
+    const parseEndDate = () => {
+        const [y, m, d] = (endDate || startDate).split("-").map(Number);
+        return { month: m, day: d };
+    };
+
+    const handleStartChange = (month, day) => {
+        const newStart = `${year}-${month}-${day}`;
+        setStartDate(newStart);
+        // If end is before new start, set end = start
+        if (endDate && parseDateKey(endDate) < parseDateKey(newStart)) {
+            setEndDate(newStart);
+        }
+    };
+
+    const handleEndChange = (month, day) => {
+        const newEnd = `${year}-${month}-${day}`;
+        // Ensure end is not before start
+        if (parseDateKey(newEnd) >= parseDateKey(startDate)) {
+            setEndDate(newEnd);
+        }
+    };
+
+    const start = parseStartDate();
+    const end = parseEndDate();
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -34,39 +81,100 @@ export default function ReservationModal({
             <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
                 <div className="bg-stone-50 px-8 py-6 border-b border-stone-100">
                     <h2 className="font-serif text-xl text-stone-800">
-                        {formatDate()}
+                        {editingEvent ? "Edit Event" : "New Event"}
                     </h2>
+                    <p className="text-sm text-stone-500 mt-1">
+                        {formatDate(startDate)}
+                        {endDate && endDate !== startDate && ` → ${formatDate(endDate)}`}
+                        {duration > 1 && <span className="ml-2 text-stone-400">({duration} days)</span>}
+                    </p>
                 </div>
 
                 <div className="p-8 space-y-6">
-                    <div className="space-y-4">
+                    {/* Title */}
+                    <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
+                            Event Title
+                        </label>
+                        <input
+                            type="text"
+                            value={eventTitle}
+                            onChange={(e) => setEventTitle(e.target.value)}
+                            placeholder="What are you planning?"
+                            className="w-full border-b-2 border-stone-100 bg-transparent py-2 text-lg font-serif text-stone-800 placeholder:text-stone-300 focus:border-stone-800 focus:outline-none transition-colors"
+                            autoFocus
+                        />
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
+                            Location / Destination
+                        </label>
+                        <input
+                            type="text"
+                            value={eventLocation}
+                            onChange={(e) => setEventLocation(e.target.value)}
+                            placeholder="Where is this happening?"
+                            className="w-full border-b-2 border-stone-100 bg-transparent py-1 text-sm font-sans text-stone-600 placeholder:text-stone-300 focus:border-stone-800 focus:outline-none transition-colors"
+                        />
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
-                                Reservation Title
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">
+                                Start Date
                             </label>
-                            <input
-                                type="text"
-                                value={reservationTitle}
-                                onChange={(e) => setReservationTitle(e.target.value)}
-                                placeholder="What are you reserving?"
-                                className="w-full border-b-2 border-stone-100 bg-transparent py-2 text-lg font-serif text-stone-800 placeholder:text-stone-300 focus:border-stone-800 focus:outline-none transition-colors"
-                                autoFocus
-                            />
+                            <div className="flex gap-2">
+                                <select
+                                    value={start.month}
+                                    onChange={(e) => handleStartChange(parseInt(e.target.value), start.day)}
+                                    className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-sm text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                                >
+                                    {monthOptions.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label.slice(0, 3)}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={start.day}
+                                    onChange={(e) => handleStartChange(start.month, parseInt(e.target.value))}
+                                    className="w-16 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-sm text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                                >
+                                    {getDayOptions(start.month).map(d => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
-                                Location / Destination
+                            <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">
+                                End Date
                             </label>
-                            <input
-                                type="text"
-                                value={reservationLocation}
-                                onChange={(e) => setReservationLocation(e.target.value)}
-                                placeholder="Where is this happening?"
-                                className="w-full border-b-2 border-stone-100 bg-transparent py-1 text-sm font-sans text-stone-600 placeholder:text-stone-300 focus:border-stone-800 focus:outline-none transition-colors"
-                            />
+                            <div className="flex gap-2">
+                                <select
+                                    value={end.month}
+                                    onChange={(e) => handleEndChange(parseInt(e.target.value), end.day)}
+                                    className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-sm text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                                >
+                                    {monthOptions.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label.slice(0, 3)}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={end.day}
+                                    onChange={(e) => handleEndChange(end.month, parseInt(e.target.value))}
+                                    className="w-16 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-sm text-stone-700 focus:outline-none focus:ring-1 focus:ring-stone-300"
+                                >
+                                    {getDayOptions(end.month).map(d => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
+                    {/* Theme */}
                     <div>
                         <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-3">
                             Theme
@@ -90,8 +198,9 @@ export default function ReservationModal({
                         </div>
                     </div>
 
+                    {/* Actions */}
                     <div className="flex items-center justify-between pt-4">
-                        {reservations[modalDate] && (
+                        {editingEvent && (
                             <button
                                 onClick={onDelete}
                                 className="text-xs font-bold text-rose-400 hover:text-rose-600 transition-colors uppercase tracking-widest"
@@ -108,7 +217,7 @@ export default function ReservationModal({
                             </button>
                             <button
                                 onClick={onSave}
-                                disabled={!reservationTitle.trim()}
+                                disabled={!eventTitle.trim()}
                                 className="bg-[#2d2a26] text-white px-8 py-2 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-stone-200 hover:bg-stone-800 transition-all disabled:opacity-30 disabled:shadow-none"
                             >
                                 Save
