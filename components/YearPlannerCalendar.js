@@ -289,11 +289,11 @@ export default function YearPlannerCalendar() {
                                                                 >
                                                                     {isValid && (
                                                                         <span className={`
-                                      text-[8px] font-bold z-10
+                                      text-[8px] font-bold z-10 truncate max-w-full px-0.5
                                       ${event ? THEMES[event.theme].textColor : "text-stone-300"}
                                       ${isToday && !event ? "text-amber-500" : ""}
                                     `}>
-                                                                            {DAY_LABELS[dayOfWeek]}
+                                                                            {event ? event.title.charAt(0).toUpperCase() : DAY_LABELS[dayOfWeek]}
                                                                         </span>
                                                                     )}
                                                                     {event && event.location && (
