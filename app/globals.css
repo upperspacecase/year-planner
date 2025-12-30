@@ -46,6 +46,12 @@
 html,
 body {
   scroll-behavior: smooth !important;
+  background-color: #fcfbf7;
+}
+
+/* Serif font for calendar headings */
+.font-serif {
+  font-family: Georgia, 'Times New Roman', serif;
 }
 
 progress::-webkit-progress-value {
