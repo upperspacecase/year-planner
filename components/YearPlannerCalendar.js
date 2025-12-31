@@ -33,6 +33,7 @@ export default function YearPlannerCalendar() {
     const [showModal, setShowModal] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [modalStartDate, setModalStartDate] = useState(null);
+    const [showSignInPrompt, setShowSignInPrompt] = useState(false);
 
     // Form state
     const [eventTitle, setEventTitle] = useState("");
@@ -63,8 +64,6 @@ export default function YearPlannerCalendar() {
             if (response.ok) {
                 const data = await response.json();
                 setEvents(data);
-            } else if (response.status === 401) {
-                setEvents({});
             } else {
                 setEvents({});
             }
@@ -79,10 +78,7 @@ export default function YearPlannerCalendar() {
     const saveEventToAPI = async (event, isNew = false) => {
         try {
             const method = isNew ? "POST" : "PUT";
-            const body = {
-                ...event,
-                year,
-            };
+            const body = { ...event, year };
 
             const response = await fetch("/api/events", {
                 method,
@@ -107,10 +103,10 @@ export default function YearPlannerCalendar() {
         }
     };
 
-    // Stable location color mapping (sorted alphabetically)
+    // Stable location color mapping
     const locationColorMap = useMemo(() => getLocationColorMap(events), [events]);
 
-    // Build a lookup: dateKey -> { event, position: 'start' | 'middle' | 'end' | 'single' }
+    // Build date-to-event lookup
     const dateEventMap = useMemo(() => {
         const map = {};
         Object.values(events).forEach(event => {
@@ -131,7 +127,6 @@ export default function YearPlannerCalendar() {
     const handleDayClick = (dateKey) => {
         const entry = dateEventMap[dateKey];
         if (entry) {
-            // Edit existing event
             setEditingEvent(entry.event);
             setEventTitle(entry.event.title);
             setEventLocation(entry.event.location || "");
@@ -139,7 +134,6 @@ export default function YearPlannerCalendar() {
             setModalStartDate(entry.event.startDate);
             setEventEndDate(entry.event.endDate);
         } else {
-            // New event
             setEditingEvent(null);
             setEventTitle("");
             setEventLocation("");
@@ -152,6 +146,13 @@ export default function YearPlannerCalendar() {
 
     const handleSaveEvent = async () => {
         if (!eventTitle.trim() || !modalStartDate) return;
+
+        // Require sign-in to save
+        if (!isSignedIn) {
+            closeModal();
+            setShowSignInPrompt(true);
+            return;
+        }
 
         const isNew = !editingEvent;
         const eventId = editingEvent?.id || generateEventId();
@@ -167,9 +168,7 @@ export default function YearPlannerCalendar() {
         // Optimistic update
         setEvents(prev => {
             const updated = { ...prev };
-            if (editingEvent) {
-                delete updated[editingEvent.id];
-            }
+            if (editingEvent) delete updated[editingEvent.id];
             updated[eventId] = newEvent;
             return updated;
         });
@@ -179,7 +178,6 @@ export default function YearPlannerCalendar() {
         // Save to API
         const savedEvent = await saveEventToAPI(newEvent, isNew);
         if (savedEvent && savedEvent.id !== eventId) {
-            // Update with server-generated ID
             setEvents(prev => {
                 const updated = { ...prev };
                 delete updated[eventId];
@@ -192,17 +190,12 @@ export default function YearPlannerCalendar() {
     const handleDeleteEvent = async () => {
         if (editingEvent) {
             const eventId = editingEvent.id;
-
-            // Optimistic update
             setEvents(prev => {
                 const updated = { ...prev };
                 delete updated[eventId];
                 return updated;
             });
-
             closeModal();
-
-            // Delete from API
             await deleteEventFromAPI(eventId);
         }
     };
@@ -214,31 +207,21 @@ export default function YearPlannerCalendar() {
         setEventEndDate(null);
     };
 
-    // Drag handlers - move entire event
+    // Drag handlers
     const onDragStart = (e, dateKey) => {
         const entry = dateEventMap[dateKey];
         if (!entry) return;
-
-        // Calculate offset from start of event
         const clickOffset = daysBetween(entry.event.startDate, dateKey);
-        dragSourceRef.current = {
-            eventId: entry.event.id,
-            event: entry.event,
-            clickOffset
-        };
+        dragSourceRef.current = { eventId: entry.event.id, event: entry.event, clickOffset };
         e.dataTransfer.effectAllowed = "move";
     };
 
     const onDragOver = (e, dateKey) => {
         e.preventDefault();
-        if (dragOverDate !== dateKey) {
-            setDragOverDate(dateKey);
-        }
+        if (dragOverDate !== dateKey) setDragOverDate(dateKey);
     };
 
-    const onDragLeave = () => {
-        setDragOverDate(null);
-    };
+    const onDragLeave = () => setDragOverDate(null);
 
     const onDrop = async (e, destinationDateKey) => {
         e.preventDefault();
@@ -249,59 +232,73 @@ export default function YearPlannerCalendar() {
             return;
         }
 
-        // Calculate new start date based on where user dropped
+        // Require sign-in to drag
+        if (!isSignedIn) {
+            setDragOverDate(null);
+            setShowSignInPrompt(true);
+            return;
+        }
+
         const dropDate = parseDateKey(destinationDateKey);
         dropDate.setDate(dropDate.getDate() - clickOffset);
         const newStartDate = toDateKey(dropDate);
 
-        // Calculate duration and new end date
         const duration = daysBetween(event.startDate, event.endDate);
         const endDateObj = parseDateKey(newStartDate);
         endDateObj.setDate(endDateObj.getDate() + duration);
         const newEndDate = toDateKey(endDateObj);
 
-        // Don't update if nothing changed
         if (newStartDate === event.startDate) {
             setDragOverDate(null);
             return;
         }
 
-        const updatedEvent = {
-            ...event,
-            startDate: newStartDate,
-            endDate: newEndDate
-        };
+        const updatedEvent = { ...event, startDate: newStartDate, endDate: newEndDate };
 
-        // Optimistic update
-        setEvents(prev => ({
-            ...prev,
-            [eventId]: updatedEvent
-        }));
-
+        setEvents(prev => ({ ...prev, [eventId]: updatedEvent }));
         setDragOverDate(null);
         dragSourceRef.current = { eventId: null, event: null, clickOffset: 0 };
 
-        // Save to API
         await saveEventToAPI(updatedEvent, false);
     };
 
-    if (isLoading) {
+    if (!isLoaded || isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#fcfbf7]">
-                <div className="text-stone-400">Loading calendar...</div>
+                <div className="text-stone-400">Loading...</div>
             </div>
         );
     }
 
     return (
         <div className="min-h-screen pb-20 selection:bg-amber-200 bg-[#fcfbf7]">
-            <nav className="sticky top-0 z-40 bg-[#fcfbf7]/80 backdrop-blur-md border-b border-stone-200/60 px-6 py-4">
-                <div className="mx-auto max-w-[1800px] flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="text-center md:text-left">
-                        <h1 className="font-serif text-3xl font-light tracking-tight text-[#2d2a26]">
-                            {year} <span className="text-stone-400 font-sans text-xl ml-2 tracking-widest font-thin">ANNUAL</span>
-                        </h1>
+            {/* Sign-in prompt modal */}
+            {showSignInPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-stone-900/20 backdrop-blur-sm" onClick={() => setShowSignInPrompt(false)} />
+                    <div className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl p-8 text-center">
+                        <h2 className="font-serif text-2xl text-stone-800 mb-2">Sign in to save</h2>
+                        <p className="text-stone-500 mb-6">Create an account to save your events and access them anywhere.</p>
+                        <SignInButton mode="modal">
+                            <button
+                                onClick={() => setShowSignInPrompt(false)}
+                                className="w-full bg-[#2d2a26] text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors"
+                            >
+                                Sign in or Sign up
+                            </button>
+                        </SignInButton>
+                        <button onClick={() => setShowSignInPrompt(false)} className="mt-4 text-sm text-stone-400 hover:text-stone-600">
+                            Maybe later
+                        </button>
                     </div>
+                </div>
+            )}
+
+            <nav className="sticky top-0 z-40 bg-[#fcfbf7]/80 backdrop-blur-md border-b border-stone-200/60 px-6 py-4">
+                <div className="mx-auto max-w-[1800px] flex items-center justify-between gap-4">
+                    <h1 className="font-serif text-3xl font-light tracking-tight text-[#2d2a26]">
+                        {year} <span className="text-stone-400 font-sans text-xl ml-2 tracking-widest font-thin">ANNUAL</span>
+                    </h1>
                     <div className="flex items-center gap-4">
                         <SignedOut>
                             <SignInButton mode="modal">
@@ -311,18 +308,29 @@ export default function YearPlannerCalendar() {
                             </SignInButton>
                         </SignedOut>
                         <SignedIn>
-                            <UserButton
-                                afterSignOutUrl="/"
-                                appearance={{
-                                    elements: {
-                                        avatarBox: "w-10 h-10"
-                                    }
-                                }}
-                            />
+                            <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-10 h-10" } }} />
                         </SignedIn>
                     </div>
                 </div>
             </nav>
+
+            {/* Landing hero for non-authenticated users */}
+            {!isSignedIn && (
+                <div className="px-6 py-12 text-center border-b border-stone-100">
+                    <h2 className="font-serif text-4xl md:text-5xl font-light text-stone-800 mb-4">
+                        Plan your year with purpose
+                    </h2>
+                    <p className="text-stone-500 max-w-xl mx-auto mb-8">
+                        Reserve time for what matters most—health, relationships, experiences, growth, and wealth.
+                        Click any day to start planning.
+                    </p>
+                    <SignInButton mode="modal">
+                        <button className="bg-[#2d2a26] text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors">
+                            Get started free
+                        </button>
+                    </SignInButton>
+                </div>
+            )}
 
             <main className="px-4 py-8 md:px-8 lg:px-12">
                 <div className="mx-auto max-w-[1800px] overflow-x-auto">
@@ -353,7 +361,6 @@ export default function YearPlannerCalendar() {
 
                                             return (
                                                 <div key={monthName} className="flex items-stretch group/month">
-                                                    {/* Quarter label */}
                                                     <div className="w-10 shrink-0 flex items-center justify-center md:w-16">
                                                         {isFirstInQ && (
                                                             <span className="font-serif text-[10px] font-bold tracking-widest text-stone-300 rotate-[-90deg]">
@@ -362,14 +369,12 @@ export default function YearPlannerCalendar() {
                                                         )}
                                                     </div>
 
-                                                    {/* Month label */}
                                                     <div className="flex w-24 shrink-0 items-center pr-4 md:w-36">
                                                         <span className="font-serif text-sm font-medium text-stone-700 tracking-tight">
                                                             {monthName}
                                                         </span>
                                                     </div>
 
-                                                    {/* Days grid */}
                                                     <div className="flex flex-1 gap-[2px]">
                                                         {Array.from({ length: 31 }, (_, dIdx) => {
                                                             const day = dIdx + 1;
@@ -383,7 +388,6 @@ export default function YearPlannerCalendar() {
                                                             const isToday = isCurrentYear && today.getMonth() === monthIndex && today.getDate() === day;
                                                             const isDragOver = dragOverDate === dateKey;
 
-                                                            // Rounded corners based on position
                                                             let roundedClass = "rounded-sm";
                                                             if (position === 'start') roundedClass = "rounded-l-md rounded-r-none";
                                                             else if (position === 'end') roundedClass = "rounded-r-md rounded-l-none";
@@ -392,7 +396,7 @@ export default function YearPlannerCalendar() {
                                                             return (
                                                                 <div
                                                                     key={dIdx}
-                                                                    draggable={isValid && !!event}
+                                                                    draggable={isValid && !!event && isSignedIn}
                                                                     onDragStart={(e) => isValid && onDragStart(e, dateKey)}
                                                                     onDragOver={(e) => isValid && onDragOver(e, dateKey)}
                                                                     onDragLeave={onDragLeave}
@@ -419,9 +423,7 @@ export default function YearPlannerCalendar() {
                                                                         </span>
                                                                     )}
                                                                     {event && event.location && (
-                                                                        <div
-                                                                            className={`absolute bottom-0 left-0 right-0 h-[3px] ${locationColorMap[event.location]}`}
-                                                                        />
+                                                                        <div className={`absolute bottom-0 left-0 right-0 h-[3px] ${locationColorMap[event.location]}`} />
                                                                     )}
                                                                 </div>
                                                             );
@@ -439,7 +441,6 @@ export default function YearPlannerCalendar() {
 
                 {/* Legends */}
                 <div className="mt-12 space-y-8">
-                    {/* Theme Legend */}
                     <div className="flex flex-wrap justify-center items-center gap-8 border-b border-stone-100 pb-8">
                         {Object.entries(THEMES).map(([key, theme]) => (
                             <div key={key} className="flex items-center gap-2 group cursor-default">
@@ -449,7 +450,6 @@ export default function YearPlannerCalendar() {
                         ))}
                     </div>
 
-                    {/* Location Legend */}
                     <div className="flex flex-col items-center gap-4">
                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Locations & Destinations</span>
                         <div className="flex flex-wrap justify-center items-center gap-4 max-w-4xl">
@@ -467,12 +467,13 @@ export default function YearPlannerCalendar() {
                     </div>
 
                     <div className="text-center">
-                        <div className="text-[10px] text-stone-400 italic">Drag events to reschedule • Click to add details</div>
+                        <div className="text-[10px] text-stone-400 italic">
+                            {isSignedIn ? "Drag events to reschedule • Click to add details" : "Click any day to start planning"}
+                        </div>
                     </div>
                 </div>
             </main>
 
-            {/* Reservation Modal */}
             <ReservationModal
                 showModal={showModal}
                 year={year}
