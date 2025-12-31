@@ -262,16 +262,25 @@ export default function YearPlannerCalendar() {
         await saveEventToAPI(updatedEvent, false);
     };
 
+    // Theme colors for the new clean style
+    const themeColors = {
+        experiences: "bg-amber-400",
+        relationships: "bg-pink-400",
+        health: "bg-emerald-400",
+        growth: "bg-violet-400",
+        wealth: "bg-sky-400"
+    };
+
     if (!isLoaded || isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#fcfbf7]">
+            <div className="min-h-screen flex items-center justify-center bg-[#f5f5f3]">
                 <div className="text-stone-400">Loading...</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen pb-20 selection:bg-amber-200 bg-[#fcfbf7]">
+        <div className="min-h-screen pb-20 bg-[#f5f5f3]">
             {/* Sign-in prompt modal */}
             {showSignInPrompt && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -282,7 +291,7 @@ export default function YearPlannerCalendar() {
                         <SignInButton mode="modal">
                             <button
                                 onClick={() => setShowSignInPrompt(false)}
-                                className="w-full bg-[#2d2a26] text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors"
+                                className="w-full bg-stone-900 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors"
                             >
                                 Sign in or Sign up
                             </button>
@@ -294,183 +303,136 @@ export default function YearPlannerCalendar() {
                 </div>
             )}
 
-            <nav className="sticky top-0 z-40 bg-[#fcfbf7]/80 backdrop-blur-md border-b border-stone-200/60 px-6 py-4">
-                <div className="mx-auto max-w-[1800px] flex items-center justify-between gap-4">
-                    <h1 className="font-serif text-3xl font-light tracking-tight text-[#2d2a26]">
-                        {year} <span className="text-stone-400 font-sans text-xl ml-2 tracking-widest font-thin">ANNUAL</span>
-                    </h1>
-                    <div className="flex items-center gap-4">
-                        <SignedOut>
-                            <SignInButton mode="modal">
-                                <button className="bg-[#2d2a26] text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors">
-                                    Sign in
-                                </button>
-                            </SignInButton>
-                        </SignedOut>
-                        <SignedIn>
-                            <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-10 h-10" } }} />
-                        </SignedIn>
-                    </div>
+            {/* Header */}
+            <header className="pt-12 pb-8 px-6 text-center">
+                <div className="flex justify-end max-w-6xl mx-auto mb-8">
+                    <SignedOut>
+                        <SignInButton mode="modal">
+                            <button className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
+                                Sign in
+                            </button>
+                        </SignInButton>
+                    </SignedOut>
+                    <SignedIn>
+                        <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "w-8 h-8" } }} />
+                    </SignedIn>
                 </div>
-            </nav>
+                <h1 className="font-serif text-6xl font-light text-stone-800 mb-3 italic">
+                    {year}
+                </h1>
+                <p className="text-stone-500 font-serif italic text-lg">
+                    Turn resolutions into reservations
+                </p>
+            </header>
 
-            {/* Landing hero for non-authenticated users */}
-            {!isSignedIn && (
-                <div className="px-6 py-12 text-center border-b border-stone-100">
-                    <h2 className="font-serif text-4xl md:text-5xl font-light text-stone-800 mb-4">
-                        Plan your year with purpose
-                    </h2>
-                    <p className="text-stone-500 max-w-xl mx-auto mb-8">
-                        Reserve time for what matters most—health, relationships, experiences, growth, and wealth.
-                        Click any day to start planning.
-                    </p>
-                    <SignInButton mode="modal">
-                        <button className="bg-[#2d2a26] text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors">
-                            Get started free
-                        </button>
-                    </SignInButton>
-                </div>
-            )}
-
-            <main className="px-4 py-8 md:px-8 lg:px-12">
-                <div className="mx-auto max-w-[1800px] overflow-x-auto">
-                    <div className="min-w-[1000px]">
+            <main className="px-4 md:px-8 lg:px-12">
+                <div className="mx-auto max-w-6xl overflow-x-auto">
+                    <div className="min-w-[900px]">
                         {/* Day numbers header */}
-                        <div className="mb-4 flex border-b border-stone-100 pb-2">
-                            <div className="w-10 shrink-0 md:w-16" />
-                            <div className="w-24 shrink-0 md:w-36" />
+                        <div className="flex mb-2">
+                            <div className="w-8 shrink-0" />
+                            <div className="w-20 shrink-0" />
                             <div className="flex flex-1">
                                 {Array.from({ length: 31 }, (_, i) => (
-                                    <div key={i} className="flex flex-1 items-center justify-center text-[10px] font-semibold text-stone-400">
-                                        {(i + 1).toString().padStart(2, '0')}
+                                    <div key={i} className="flex-1 text-center text-xs text-stone-400 font-medium">
+                                        {i + 1}
                                     </div>
                                 ))}
                             </div>
                         </div>
 
                         {/* Calendar grid */}
-                        <div className="space-y-2">
+                        <div className="space-y-0">
                             {QUARTERS.map((quarter, qIdx) => (
-                                <div key={quarter} className="group/quarter">
-                                    <div className="space-y-0.5">
-                                        {[0, 1, 2].map((mInQ) => {
-                                            const monthIndex = qIdx * 3 + mInQ;
-                                            const monthName = MONTHS[monthIndex];
-                                            const daysInMonth = getDaysInMonth(year, monthIndex);
-                                            const isFirstInQ = mInQ === 0;
+                                <div key={quarter}>
+                                    {[0, 1, 2].map((mInQ) => {
+                                        const monthIndex = qIdx * 3 + mInQ;
+                                        const monthName = MONTHS[monthIndex];
+                                        const daysInMonth = getDaysInMonth(year, monthIndex);
+                                        const isFirstInQ = mInQ === 0;
 
-                                            return (
-                                                <div key={monthName} className="flex items-stretch group/month">
-                                                    <div className="w-10 shrink-0 flex items-center justify-center md:w-16">
-                                                        {isFirstInQ && (
-                                                            <span className="font-serif text-[10px] font-bold tracking-widest text-stone-300 rotate-[-90deg]">
-                                                                {quarter}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex w-24 shrink-0 items-center pr-4 md:w-36">
-                                                        <span className="font-serif text-sm font-medium text-stone-700 tracking-tight">
-                                                            {monthName}
+                                        return (
+                                            <div key={monthName} className="flex items-center h-8">
+                                                {/* Quarter label */}
+                                                <div className="w-8 shrink-0 text-center">
+                                                    {isFirstInQ && (
+                                                        <span className="text-[10px] font-medium text-stone-300 uppercase tracking-wider">
+                                                            Q{qIdx + 1}
                                                         </span>
-                                                    </div>
-
-                                                    <div className="flex flex-1 gap-[2px]">
-                                                        {Array.from({ length: 31 }, (_, dIdx) => {
-                                                            const day = dIdx + 1;
-                                                            const isValid = day <= daysInMonth;
-                                                            const dateKey = `${year}-${monthIndex}-${day}`;
-                                                            const dayOfWeek = isValid ? getDayOfWeek(year, monthIndex, day) : -1;
-                                                            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                                                            const entry = dateEventMap[dateKey];
-                                                            const event = entry?.event;
-                                                            const position = entry?.position;
-                                                            const isToday = isCurrentYear && today.getMonth() === monthIndex && today.getDate() === day;
-                                                            const isDragOver = dragOverDate === dateKey;
-
-                                                            let roundedClass = "rounded-sm";
-                                                            if (position === 'start') roundedClass = "rounded-l-md rounded-r-none";
-                                                            else if (position === 'end') roundedClass = "rounded-r-md rounded-l-none";
-                                                            else if (position === 'middle') roundedClass = "rounded-none";
-
-                                                            return (
-                                                                <div
-                                                                    key={dIdx}
-                                                                    draggable={isValid && !!event && isSignedIn}
-                                                                    onDragStart={(e) => isValid && onDragStart(e, dateKey)}
-                                                                    onDragOver={(e) => isValid && onDragOver(e, dateKey)}
-                                                                    onDragLeave={onDragLeave}
-                                                                    onDrop={(e) => isValid && onDrop(e, dateKey)}
-                                                                    onClick={() => isValid && handleDayClick(dateKey)}
-                                                                    className={`
-                                    relative flex-1 aspect-[2/3] flex flex-col items-center justify-center
-                                    ${roundedClass} transition-all duration-300 overflow-hidden
-                                    ${isValid ? "cursor-pointer" : "bg-transparent opacity-0 pointer-events-none"}
-                                    ${isValid && !event ? (isWeekend ? "bg-stone-50/50" : "bg-stone-50/20 hover:bg-stone-100") : ""}
-                                    ${event ? `${THEMES[event.theme].color} ${THEMES[event.theme].borderColor} border-y border-l ${position === 'end' || position === 'single' ? 'border-r' : ''} shadow-sm` : "border border-stone-100/40"}
-                                    ${isDragOver ? "ring-2 ring-stone-400 ring-offset-1 z-10 scale-110" : ""}
-                                    ${isToday ? "ring-1 ring-amber-400" : ""}
-                                  `}
-                                                                    title={event ? `${event.title}${event.location ? ` @ ${event.location}` : ""}` : undefined}
-                                                                >
-                                                                    {isValid && (
-                                                                        <span className={`
-                                      text-[6px] font-semibold z-10 leading-tight text-center px-0.5 line-clamp-2 overflow-hidden
-                                      ${event ? THEMES[event.theme].textColor : "text-stone-300"}
-                                      ${isToday && !event ? "text-amber-500" : ""}
-                                    `}>
-                                                                            {event ? event.title : DAY_LABELS[dayOfWeek]}
-                                                                        </span>
-                                                                    )}
-                                                                    {event && event.location && (
-                                                                        <div className={`absolute bottom-0 left-0 right-0 h-[3px] ${locationColorMap[event.location]}`} />
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                    )}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+
+                                                {/* Month label */}
+                                                <div className="w-20 shrink-0 pr-3">
+                                                    <span className="text-sm text-stone-600">
+                                                        {monthName}
+                                                    </span>
+                                                </div>
+
+                                                {/* Days grid */}
+                                                <div className="flex flex-1">
+                                                    {Array.from({ length: 31 }, (_, dIdx) => {
+                                                        const day = dIdx + 1;
+                                                        const isValid = day <= daysInMonth;
+                                                        const dateKey = `${year}-${monthIndex}-${day}`;
+                                                        const dayOfWeek = isValid ? getDayOfWeek(year, monthIndex, day) : -1;
+                                                        const entry = dateEventMap[dateKey];
+                                                        const event = entry?.event;
+                                                        const position = entry?.position;
+                                                        const isDragOver = dragOverDate === dateKey;
+
+                                                        // Rounded corners based on position
+                                                        let roundedClass = "rounded";
+                                                        if (position === 'start') roundedClass = "rounded-l-md rounded-r-none";
+                                                        else if (position === 'end') roundedClass = "rounded-r-md rounded-l-none";
+                                                        else if (position === 'middle') roundedClass = "rounded-none";
+
+                                                        const bgColor = event ? themeColors[event.theme] : "";
+
+                                                        return (
+                                                            <div
+                                                                key={dIdx}
+                                                                draggable={isValid && !!event && isSignedIn}
+                                                                onDragStart={(e) => isValid && onDragStart(e, dateKey)}
+                                                                onDragOver={(e) => isValid && onDragOver(e, dateKey)}
+                                                                onDragLeave={onDragLeave}
+                                                                onDrop={(e) => isValid && onDrop(e, dateKey)}
+                                                                onClick={() => isValid && handleDayClick(dateKey)}
+                                                                className={`
+                                  flex-1 h-6 flex items-center justify-center mx-[1px]
+                                  ${roundedClass} transition-all cursor-pointer
+                                  ${isValid ? "" : "opacity-0 pointer-events-none"}
+                                  ${event ? bgColor : "hover:bg-stone-200/50"}
+                                  ${isDragOver ? "ring-2 ring-stone-500 scale-110 z-10" : ""}
+                                `}
+                                                                title={event ? `${event.title}${event.location ? ` @ ${event.location}` : ""}` : undefined}
+                                                            >
+                                                                {isValid && (
+                                                                    <span className={`text-[10px] font-medium ${event ? "text-white" : "text-stone-400"}`}>
+                                                                        {DAY_LABELS[dayOfWeek]}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Legends */}
-                <div className="mt-12 space-y-8">
-                    <div className="flex flex-wrap justify-center items-center gap-8 border-b border-stone-100 pb-8">
-                        {Object.entries(THEMES).map(([key, theme]) => (
-                            <div key={key} className="flex items-center gap-2 group cursor-default">
-                                <div className={`w-3 h-3 rounded-full ${theme.color} border ${theme.borderColor} transition-transform group-hover:scale-125`} />
-                                <span className="text-xs font-medium text-stone-500 uppercase tracking-widest">{theme.label}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="flex flex-col items-center gap-4">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-300">Locations & Destinations</span>
-                        <div className="flex flex-wrap justify-center items-center gap-4 max-w-4xl">
-                            {Object.entries(locationColorMap).length > 0 ? (
-                                Object.entries(locationColorMap).map(([loc, colorClass]) => (
-                                    <div key={loc} className="flex items-center gap-2 px-3 py-1 bg-white border border-stone-100 rounded-full shadow-sm">
-                                        <div className={`w-2 h-2 rounded-full ${colorClass}`} />
-                                        <span className="text-xs font-medium text-stone-600">{loc}</span>
-                                    </div>
-                                ))
-                            ) : (
-                                <span className="text-xs italic text-stone-400">No locations assigned yet</span>
-                            )}
+                {/* Legend */}
+                <div className="mt-12 flex flex-wrap justify-center items-center gap-6">
+                    {Object.entries(THEMES).map(([key, theme]) => (
+                        <div key={key} className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-sm ${themeColors[key]}`} />
+                            <span className="text-xs text-stone-500">{theme.label}</span>
                         </div>
-                    </div>
-
-                    <div className="text-center">
-                        <div className="text-[10px] text-stone-400 italic">
-                            {isSignedIn ? "Drag events to reschedule • Click to add details" : "Click any day to start planning"}
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </main>
 
