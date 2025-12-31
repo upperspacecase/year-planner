@@ -116,15 +116,28 @@ export function generateEventId() {
   return `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Get stable location color map (sorted alphabetically)
+// Get stable location color map (hash-based for consistency)
+// Colors won't shift when new locations are added
 export function getLocationColorMap(events) {
   const locations = Array.from(
     new Set(Object.values(events).map(e => e.location).filter(Boolean))
-  ).sort(); // Sort alphabetically for stable colors
+  );
+
+  // Simple hash function for strings
+  const hashString = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  };
 
   const map = {};
-  locations.forEach((loc, index) => {
-    map[loc] = LOCATION_COLORS[index % LOCATION_COLORS.length];
+  locations.forEach((loc) => {
+    const colorIndex = hashString(loc) % LOCATION_COLORS.length;
+    map[loc] = LOCATION_COLORS[colorIndex];
   });
   return map;
 }

@@ -25,7 +25,6 @@ import {
 import ReservationModal from "./ReservationModal";
 import EventCard from "./EventCard";
 import EventDetailModal from "./EventDetailModal";
-import Link from "next/link";
 
 export default function YearPlannerCalendar() {
     const { isSignedIn, isLoaded } = useAuth();
@@ -304,9 +303,9 @@ export default function YearPlannerCalendar() {
             {/* Header */}
             <header className="pt-12 pb-8 px-6 text-center">
                 <div className="flex justify-between items-center max-w-6xl mx-auto mb-8">
-                    <Link href="/" className="font-serif text-lg text-stone-600 hover:text-stone-900 transition-colors">
+                    <span className="font-serif text-lg text-stone-800">
                         YearPlanner
-                    </Link>
+                    </span>
                     <SignedOut>
                         <SignInButton mode="modal">
                             <button className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
