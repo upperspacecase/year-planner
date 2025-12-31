@@ -142,104 +142,51 @@ export function getLocationColorMap(events) {
   return map;
 }
 
-// Initial events with multi-day support
+// Initial mock events for demo
 export function getInitialEvents(year) {
   return {
     evt_1: {
       id: "evt_1",
-      title: "Morning yoga routine",
-      theme: "health",
-      location: "Home",
+      title: "Marathon Training",
+      location: "Central Park",
       startDate: `${year}-0-15`,
       endDate: `${year}-0-15`
     },
     evt_2: {
       id: "evt_2",
-      title: "Valentine's weekend",
-      theme: "relationships",
-      location: "Paris",
-      startDate: `${year}-1-14`,
-      endDate: `${year}-1-16`
+      title: "Cherry Blossoms",
+      location: "Kyoto",
+      startDate: `${year}-3-1`,
+      endDate: `${year}-3-7`
     },
     evt_3: {
       id: "evt_3",
-      title: "Japan trip",
-      theme: "experiences",
-      location: "Tokyo",
-      startDate: `${year}-2-1`,
-      endDate: `${year}-2-7`
+      title: "Summer Beach House",
+      location: "Malibu",
+      startDate: `${year}-6-10`,
+      endDate: `${year}-6-20`
     },
     evt_4: {
       id: "evt_4",
-      title: "Financial planning",
-      theme: "wealth",
-      location: "Office",
-      startDate: `${year}-3-5`,
-      endDate: `${year}-3-5`
+      title: "Tech Conference",
+      location: "San Francisco",
+      startDate: `${year}-8-15`,
+      endDate: `${year}-8-18`
     },
     evt_5: {
       id: "evt_5",
-      title: "Mom's birthday",
-      theme: "relationships",
-      location: "London",
-      startDate: `${year}-4-10`,
-      endDate: `${year}-4-12`
+      title: "Family Reunion",
+      location: "Chicago",
+      startDate: `${year}-10-24`,
+      endDate: `${year}-10-28`
     },
     evt_6: {
       id: "evt_6",
-      title: "Summer solstice hike",
-      theme: "experiences",
-      location: "The Alps",
-      startDate: `${year}-5-21`,
-      endDate: `${year}-5-21`
-    },
-    evt_7: {
-      id: "evt_7",
-      title: "Beach trip",
-      theme: "experiences",
-      location: "Malibu",
-      startDate: `${year}-6-4`,
-      endDate: `${year}-6-8`
-    },
-    evt_8: {
-      id: "evt_8",
-      title: "Digital detox",
-      theme: "health",
-      location: "Cabin",
-      startDate: `${year}-7-15`,
-      endDate: `${year}-7-20`
-    },
-    evt_9: {
-      id: "evt_9",
-      title: "Italian cooking course",
-      theme: "growth",
-      location: "Kitchen",
-      startDate: `${year}-8-1`,
-      endDate: `${year}-8-1`
-    },
-    evt_10: {
-      id: "evt_10",
-      title: "Photography course",
-      theme: "growth",
-      location: "Studio",
-      startDate: `${year}-9-10`,
-      endDate: `${year}-9-10`
-    },
-    evt_11: {
-      id: "evt_11",
-      title: "Thanksgiving",
-      theme: "relationships",
-      location: "Boston",
-      startDate: `${year}-10-25`,
-      endDate: `${year}-10-28`
-    },
-    evt_12: {
-      id: "evt_12",
-      title: "Christmas",
-      theme: "relationships",
-      location: "New York",
-      startDate: `${year}-11-24`,
-      endDate: `${year}-11-26`
-    },
+      title: "Winter Ski Trip",
+      location: "Aspen",
+      startDate: `${year}-11-20`,
+      endDate: `${year}-11-27`
+    }
   };
 }
+

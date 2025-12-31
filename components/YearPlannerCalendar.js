@@ -21,6 +21,7 @@ import {
     toDateKey,
     parseDateKey,
     DEFAULT_EVENT_COLOR,
+    getInitialEvents,
 } from "@/libs/calendarConstants";
 import ReservationModal from "./ReservationModal";
 import EventCard from "./EventCard";
@@ -55,7 +56,8 @@ export default function YearPlannerCalendar() {
         if (isLoaded && isSignedIn) {
             fetchEvents();
         } else if (isLoaded && !isSignedIn) {
-            setEvents({});
+            // Show mock events for signed-out users
+            setEvents(getInitialEvents(year));
             setIsLoading(false);
         }
     }, [year, isLoaded, isSignedIn]);
@@ -323,6 +325,22 @@ export default function YearPlannerCalendar() {
                 <p className="text-stone-500 font-serif italic text-lg">
                     Turn resolutions into reservations
                 </p>
+
+                {/* Landing Hero / CTA for signed-out users */}
+                {!isSignedIn && (
+                    <div className="mt-8 mb-4">
+                        <div className="flex flex-col items-center gap-4">
+                            <p className="text-stone-500 max-w-md mx-auto text-sm">
+                                Plan your year visually. Color-code by location. Share with friends.
+                            </p>
+                            <SignInButton mode="modal">
+                                <button className="bg-stone-900 text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors shadow-lg shadow-stone-200">
+                                    Start Planning Free
+                                </button>
+                            </SignInButton>
+                        </div>
+                    </div>
+                )}
             </header>
 
             <main className="px-4 md:px-8 lg:px-12">
