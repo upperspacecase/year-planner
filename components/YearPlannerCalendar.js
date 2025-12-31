@@ -2,13 +2,19 @@
 
 import { useState, useRef, useMemo, useEffect } from "react";
 import {
+    SignInButton,
+    SignedIn,
+    SignedOut,
+    UserButton,
+    useAuth,
+} from "@clerk/nextjs";
+import {
     MONTHS,
     QUARTERS,
     THEMES,
     DAY_LABELS,
     getDaysInMonth,
     getDayOfWeek,
-    getInitialEvents,
     getLocationColorMap,
     getDateRange,
     daysBetween,
@@ -19,6 +25,7 @@ import {
 import ReservationModal from "./ReservationModal";
 
 export default function YearPlannerCalendar() {
+    const { isSignedIn, isLoaded } = useAuth();
     const currentYear = new Date().getFullYear();
     const [year] = useState(new Date().getMonth() >= 9 ? currentYear + 1 : currentYear);
     const [events, setEvents] = useState({});
@@ -40,34 +47,30 @@ export default function YearPlannerCalendar() {
     const today = new Date();
     const isCurrentYear = today.getFullYear() === year;
 
-    // Fetch events from API on mount
+    // Fetch events from API on mount (only when signed in)
     useEffect(() => {
-        fetchEvents();
-    }, [year]);
+        if (isLoaded && isSignedIn) {
+            fetchEvents();
+        } else if (isLoaded && !isSignedIn) {
+            setEvents({});
+            setIsLoading(false);
+        }
+    }, [year, isLoaded, isSignedIn]);
 
     const fetchEvents = async () => {
         try {
             const response = await fetch(`/api/events?year=${year}`);
             if (response.ok) {
                 const data = await response.json();
-                // If no events in DB, use initial sample events
-                if (Object.keys(data).length === 0) {
-                    const initialEvents = getInitialEvents(year);
-                    // Save initial events to DB
-                    for (const event of Object.values(initialEvents)) {
-                        await saveEventToAPI(event, true);
-                    }
-                    setEvents(initialEvents);
-                } else {
-                    setEvents(data);
-                }
+                setEvents(data);
+            } else if (response.status === 401) {
+                setEvents({});
             } else {
-                // Fallback to local data
-                setEvents(getInitialEvents(year));
+                setEvents({});
             }
         } catch (error) {
             console.error("Error fetching events:", error);
-            setEvents(getInitialEvents(year));
+            setEvents({});
         } finally {
             setIsLoading(false);
         }
@@ -298,6 +301,25 @@ export default function YearPlannerCalendar() {
                         <h1 className="font-serif text-3xl font-light tracking-tight text-[#2d2a26]">
                             {year} <span className="text-stone-400 font-sans text-xl ml-2 tracking-widest font-thin">ANNUAL</span>
                         </h1>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <SignedOut>
+                            <SignInButton mode="modal">
+                                <button className="bg-[#2d2a26] text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors">
+                                    Sign in
+                                </button>
+                            </SignInButton>
+                        </SignedOut>
+                        <SignedIn>
+                            <UserButton
+                                afterSignOutUrl="/"
+                                appearance={{
+                                    elements: {
+                                        avatarBox: "w-10 h-10"
+                                    }
+                                }}
+                            />
+                        </SignedIn>
                     </div>
                 </div>
             </nav>

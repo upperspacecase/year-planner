@@ -31,10 +31,10 @@ const eventSchema = mongoose.Schema(
             required: true,
             index: true,
         },
-        // Optional: link to user for multi-user support
-        userId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+        // Clerk user ID for authentication
+        clerkUserId: {
+            type: String,
+            required: true,
             index: true,
         },
     },
@@ -44,8 +44,8 @@ const eventSchema = mongoose.Schema(
     }
 );
 
-// Compound index for querying events by year
-eventSchema.index({ year: 1, userId: 1 });
+// Compound index for querying events by year and user
+eventSchema.index({ year: 1, clerkUserId: 1 });
 
 // Add plugin that converts mongoose to json
 eventSchema.plugin(toJSON);

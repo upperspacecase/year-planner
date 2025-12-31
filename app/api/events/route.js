@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import connectMongo from "@/libs/mongoose";
 import Event from "@/models/Event";
 
-// GET all events for a year
+// GET all events for a year (filtered by user)
 export async function GET(request) {
     try {
+        const { userId } = await auth();
+
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         await connectMongo();
 
         const { searchParams } = new URL(request.url);
@@ -14,7 +21,10 @@ export async function GET(request) {
             return NextResponse.json({ error: "Year is required" }, { status: 400 });
         }
 
-        const events = await Event.find({ year: parseInt(year) }).sort({ startDate: 1 });
+        const events = await Event.find({
+            year: parseInt(year),
+            clerkUserId: userId
+        }).sort({ startDate: 1 });
 
         // Convert to object format for frontend
         const eventsMap = {};
@@ -39,6 +49,12 @@ export async function GET(request) {
 // POST create new event
 export async function POST(request) {
     try {
+        const { userId } = await auth();
+
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         await connectMongo();
 
         const body = await request.json();
@@ -55,6 +71,7 @@ export async function POST(request) {
             startDate,
             endDate,
             year,
+            clerkUserId: userId,
         });
 
         return NextResponse.json({
@@ -74,6 +91,12 @@ export async function POST(request) {
 // PUT update event
 export async function PUT(request) {
     try {
+        const { userId } = await auth();
+
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         await connectMongo();
 
         const body = await request.json();
@@ -83,8 +106,9 @@ export async function PUT(request) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        const event = await Event.findByIdAndUpdate(
-            id,
+        // Only allow updating own events
+        const event = await Event.findOneAndUpdate(
+            { _id: id, clerkUserId: userId },
             { title, theme, location, startDate, endDate },
             { new: true }
         );
@@ -110,6 +134,12 @@ export async function PUT(request) {
 // DELETE event
 export async function DELETE(request) {
     try {
+        const { userId } = await auth();
+
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         await connectMongo();
 
         const { searchParams } = new URL(request.url);
@@ -119,7 +149,8 @@ export async function DELETE(request) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
         }
 
-        const event = await Event.findByIdAndDelete(id);
+        // Only allow deleting own events
+        const event = await Event.findOneAndDelete({ _id: id, clerkUserId: userId });
 
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
