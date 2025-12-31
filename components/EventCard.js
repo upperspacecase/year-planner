@@ -1,8 +1,8 @@
 "use client";
 
-import { THEMES, MONTHS, parseDateKey, daysBetween } from "@/libs/calendarConstants";
+import { parseDateKey, daysBetween } from "@/libs/calendarConstants";
 
-export default function EventCard({ event, onClick, themeColors }) {
+export default function EventCard({ event, onClick, color }) {
     const startDate = parseDateKey(event.startDate);
     const endDate = parseDateKey(event.endDate);
     const duration = daysBetween(event.startDate, event.endDate) + 1;
@@ -18,9 +18,6 @@ export default function EventCard({ event, onClick, themeColors }) {
         ? formatDate(startDate)
         : `${formatDate(startDate)} – ${formatDate(endDate)}`;
 
-    const theme = THEMES[event.theme];
-    const bgColor = themeColors[event.theme];
-
     return (
         <button
             onClick={onClick}
@@ -28,7 +25,7 @@ export default function EventCard({ event, onClick, themeColors }) {
         >
             <div className="flex items-start gap-3">
                 {/* Color indicator */}
-                <div className={`w-1 h-12 rounded-full ${bgColor} shrink-0`} />
+                <div className={`w-1 h-12 rounded-full ${color.bg} shrink-0`} />
 
                 <div className="flex-1 min-w-0">
                     {/* Title */}

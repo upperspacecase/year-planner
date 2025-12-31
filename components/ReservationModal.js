@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { THEMES, MONTHS, getDaysInMonth, parseDateKey, daysBetween } from "@/libs/calendarConstants";
+import { MONTHS, getDaysInMonth, parseDateKey, daysBetween } from "@/libs/calendarConstants";
 
 export default function ReservationModal({
     showModal,
@@ -11,8 +11,6 @@ export default function ReservationModal({
     setEventTitle,
     eventLocation,
     setEventLocation,
-    selectedTheme,
-    setSelectedTheme,
     startDate,
     setStartDate,
     endDate,
@@ -96,13 +94,13 @@ export default function ReservationModal({
                     {/* Title */}
                     <div>
                         <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
-                            Event Title
+                            What are you planning?
                         </label>
                         <input
                             type="text"
                             value={eventTitle}
                             onChange={(e) => setEventTitle(e.target.value)}
-                            placeholder="What are you planning?"
+                            placeholder="Japan trip, Mom's birthday, etc."
                             className="w-full border-b-2 border-stone-100 bg-transparent py-2 text-lg font-serif text-stone-800 placeholder:text-stone-300 focus:border-stone-800 focus:outline-none transition-colors"
                             autoFocus
                         />
@@ -111,15 +109,16 @@ export default function ReservationModal({
                     {/* Location */}
                     <div>
                         <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">
-                            Location / Destination
+                            Where?
                         </label>
                         <input
                             type="text"
                             value={eventLocation}
                             onChange={(e) => setEventLocation(e.target.value)}
-                            placeholder="Where is this happening?"
+                            placeholder="Tokyo, Home, New York..."
                             className="w-full border-b-2 border-stone-100 bg-transparent py-1 text-sm font-sans text-stone-600 placeholder:text-stone-300 focus:border-stone-800 focus:outline-none transition-colors"
                         />
+                        <p className="text-[10px] text-stone-400 mt-1">Events are color-coded by location</p>
                     </div>
 
                     {/* Date Range */}
@@ -176,30 +175,6 @@ export default function ReservationModal({
                         </div>
                     </div>
 
-                    {/* Theme */}
-                    <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-3">
-                            Theme
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {Object.entries(THEMES).map(([key, theme]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => setSelectedTheme(key)}
-                                    className={`
-                    flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all
-                    ${selectedTheme === key
-                                            ? `${theme.color} border ${theme.borderColor} text-stone-900 shadow-sm`
-                                            : "bg-stone-50 border border-transparent text-stone-500 hover:bg-stone-100"}
-                  `}
-                                >
-                                    <div className={`w-2 h-2 rounded-full ${theme.color} border ${theme.borderColor}`} />
-                                    {theme.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-4">
                         {editingEvent && (
@@ -220,7 +195,7 @@ export default function ReservationModal({
                             <button
                                 onClick={onSave}
                                 disabled={!eventTitle.trim()}
-                                className="bg-[#2d2a26] text-white px-8 py-2 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-stone-200 hover:bg-stone-800 transition-all disabled:opacity-30 disabled:shadow-none"
+                                className="bg-stone-900 text-white px-8 py-2 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg shadow-stone-200 hover:bg-stone-800 transition-all disabled:opacity-30 disabled:shadow-none"
                             >
                                 Save
                             </button>

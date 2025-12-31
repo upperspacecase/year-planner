@@ -1,8 +1,8 @@
 "use client";
 
-import { THEMES, MONTHS, parseDateKey, daysBetween } from "@/libs/calendarConstants";
+import { parseDateKey, daysBetween } from "@/libs/calendarConstants";
 
-export default function EventDetailModal({ event, onClose, themeColors }) {
+export default function EventDetailModal({ event, onClose, color }) {
     if (!event) return null;
 
     const startDate = parseDateKey(event.startDate);
@@ -20,9 +20,6 @@ export default function EventDetailModal({ event, onClose, themeColors }) {
     const dateRange = duration === 1
         ? formatDate(startDate)
         : `${formatDate(startDate)} – ${formatDate(endDate)}`;
-
-    const theme = THEMES[event.theme];
-    const bgColor = themeColors[event.theme];
 
     const handleShare = async () => {
         const shareText = `${event.title}\n📅 ${dateRange}${event.location ? `\n📍 ${event.location}` : ""}`;
@@ -49,16 +46,18 @@ export default function EventDetailModal({ event, onClose, themeColors }) {
 
             <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
                 {/* Color banner */}
-                <div className={`h-2 ${bgColor}`} />
+                <div className={`h-2 ${color.bg}`} />
 
                 <div className="p-6">
-                    {/* Theme badge */}
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className={`w-2 h-2 rounded-full ${bgColor}`} />
-                        <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">
-                            {theme.label}
-                        </span>
-                    </div>
+                    {/* Location badge */}
+                    {event.location && (
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className={`w-2 h-2 rounded-full ${color.bg}`} />
+                            <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">
+                                {event.location}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Title */}
                     <h2 className="text-2xl font-serif text-stone-800 mb-4">

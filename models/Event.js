@@ -1,18 +1,13 @@
 import mongoose from "mongoose";
 import toJSON from "./plugins/toJSON";
 
-// EVENT SCHEMA for Year Planner
+// EVENT SCHEMA for Year Planner (location-based colors, no themes)
 const eventSchema = mongoose.Schema(
     {
         title: {
             type: String,
             required: true,
             trim: true,
-        },
-        theme: {
-            type: String,
-            enum: ["health", "relationships", "experiences", "growth", "wealth"],
-            default: "experiences",
         },
         location: {
             type: String,

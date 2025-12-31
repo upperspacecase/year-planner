@@ -1,5 +1,5 @@
-import YearPlannerCalendar from "@/components/YearPlannerCalendar";
+import LandingPage from "@/components/LandingPage";
 
 export default function Page() {
-  return <YearPlannerCalendar />;
+  return <LandingPage />;
 }

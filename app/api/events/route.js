@@ -32,7 +32,6 @@ export async function GET(request) {
             eventsMap[event._id.toString()] = {
                 id: event._id.toString(),
                 title: event.title,
-                theme: event.theme,
                 location: event.location,
                 startDate: event.startDate,
                 endDate: event.endDate,
@@ -58,7 +57,7 @@ export async function POST(request) {
         await connectMongo();
 
         const body = await request.json();
-        const { title, theme, location, startDate, endDate, year } = body;
+        const { title, location, startDate, endDate, year } = body;
 
         if (!title || !startDate || !endDate || !year) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -66,7 +65,6 @@ export async function POST(request) {
 
         const event = await Event.create({
             title,
-            theme: theme || "experiences",
             location,
             startDate,
             endDate,
@@ -77,7 +75,6 @@ export async function POST(request) {
         return NextResponse.json({
             id: event._id.toString(),
             title: event.title,
-            theme: event.theme,
             location: event.location,
             startDate: event.startDate,
             endDate: event.endDate,
@@ -100,7 +97,7 @@ export async function PUT(request) {
         await connectMongo();
 
         const body = await request.json();
-        const { id, title, theme, location, startDate, endDate } = body;
+        const { id, title, location, startDate, endDate } = body;
 
         if (!id) {
             return NextResponse.json({ error: "Event ID is required" }, { status: 400 });
@@ -109,7 +106,7 @@ export async function PUT(request) {
         // Only allow updating own events
         const event = await Event.findOneAndUpdate(
             { _id: id, clerkUserId: userId },
-            { title, theme, location, startDate, endDate },
+            { title, location, startDate, endDate },
             { new: true }
         );
 
@@ -120,7 +117,6 @@ export async function PUT(request) {
         return NextResponse.json({
             id: event._id.toString(),
             title: event.title,
-            theme: event.theme,
             location: event.location,
             startDate: event.startDate,
             endDate: event.endDate,

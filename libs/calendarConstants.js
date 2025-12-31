@@ -44,6 +44,23 @@ export const THEMES = {
   }
 };
 
+// Location color palette - vibrant colors for visual distinction
+export const LOCATION_COLORS = [
+  { bg: "bg-amber-400", text: "text-white", name: "amber" },
+  { bg: "bg-pink-400", text: "text-white", name: "pink" },
+  { bg: "bg-emerald-400", text: "text-white", name: "emerald" },
+  { bg: "bg-violet-400", text: "text-white", name: "violet" },
+  { bg: "bg-sky-400", text: "text-white", name: "sky" },
+  { bg: "bg-orange-400", text: "text-white", name: "orange" },
+  { bg: "bg-teal-400", text: "text-white", name: "teal" },
+  { bg: "bg-rose-400", text: "text-white", name: "rose" },
+  { bg: "bg-indigo-400", text: "text-white", name: "indigo" },
+  { bg: "bg-lime-400", text: "text-white", name: "lime" },
+];
+
+// Default color for events without location
+export const DEFAULT_EVENT_COLOR = { bg: "bg-stone-300", text: "text-stone-600", name: "default" };
+
 export const LOCATION_PALETTE = [
   "bg-teal-500", "bg-orange-500", "bg-sky-500", "bg-pink-500",
   "bg-indigo-500", "bg-lime-500", "bg-amber-600", "bg-fuchsia-500"
@@ -107,7 +124,7 @@ export function getLocationColorMap(events) {
 
   const map = {};
   locations.forEach((loc, index) => {
-    map[loc] = LOCATION_PALETTE[index % LOCATION_PALETTE.length];
+    map[loc] = LOCATION_COLORS[index % LOCATION_COLORS.length];
   });
   return map;
 }

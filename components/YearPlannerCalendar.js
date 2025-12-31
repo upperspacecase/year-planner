@@ -11,7 +11,6 @@ import {
 import {
     MONTHS,
     QUARTERS,
-    THEMES,
     DAY_LABELS,
     getDaysInMonth,
     getDayOfWeek,
@@ -20,11 +19,13 @@ import {
     daysBetween,
     generateEventId,
     toDateKey,
-    parseDateKey
+    parseDateKey,
+    DEFAULT_EVENT_COLOR,
 } from "@/libs/calendarConstants";
 import ReservationModal from "./ReservationModal";
 import EventCard from "./EventCard";
 import EventDetailModal from "./EventDetailModal";
+import Link from "next/link";
 
 export default function YearPlannerCalendar() {
     const { isSignedIn, isLoaded } = useAuth();
@@ -41,7 +42,6 @@ export default function YearPlannerCalendar() {
     // Form state
     const [eventTitle, setEventTitle] = useState("");
     const [eventLocation, setEventLocation] = useState("");
-    const [selectedTheme, setSelectedTheme] = useState("experiences");
     const [eventEndDate, setEventEndDate] = useState(null);
 
     // Drag and Drop State
@@ -109,6 +109,14 @@ export default function YearPlannerCalendar() {
     // Stable location color mapping
     const locationColorMap = useMemo(() => getLocationColorMap(events), [events]);
 
+    // Get color for an event based on location
+    const getEventColor = (event) => {
+        if (event.location && locationColorMap[event.location]) {
+            return locationColorMap[event.location];
+        }
+        return DEFAULT_EVENT_COLOR;
+    };
+
     // Build date-to-event lookup
     const dateEventMap = useMemo(() => {
         const map = {};
@@ -133,14 +141,12 @@ export default function YearPlannerCalendar() {
             setEditingEvent(entry.event);
             setEventTitle(entry.event.title);
             setEventLocation(entry.event.location || "");
-            setSelectedTheme(entry.event.theme);
             setModalStartDate(entry.event.startDate);
             setEventEndDate(entry.event.endDate);
         } else {
             setEditingEvent(null);
             setEventTitle("");
             setEventLocation("");
-            setSelectedTheme("experiences");
             setModalStartDate(dateKey);
             setEventEndDate(dateKey);
         }
@@ -162,7 +168,6 @@ export default function YearPlannerCalendar() {
         const newEvent = {
             id: eventId,
             title: eventTitle.trim(),
-            theme: selectedTheme,
             location: eventLocation.trim() || undefined,
             startDate: modalStartDate,
             endDate: eventEndDate || modalStartDate
@@ -235,7 +240,6 @@ export default function YearPlannerCalendar() {
             return;
         }
 
-        // Require sign-in to drag
         if (!isSignedIn) {
             setDragOverDate(null);
             setShowSignInPrompt(true);
@@ -263,15 +267,6 @@ export default function YearPlannerCalendar() {
         dragSourceRef.current = { eventId: null, event: null, clickOffset: 0 };
 
         await saveEventToAPI(updatedEvent, false);
-    };
-
-    // Theme colors for the new clean style
-    const themeColors = {
-        experiences: "bg-amber-400",
-        relationships: "bg-pink-400",
-        health: "bg-emerald-400",
-        growth: "bg-violet-400",
-        wealth: "bg-sky-400"
     };
 
     if (!isLoaded || isLoading) {
@@ -308,7 +303,10 @@ export default function YearPlannerCalendar() {
 
             {/* Header */}
             <header className="pt-12 pb-8 px-6 text-center">
-                <div className="flex justify-end max-w-6xl mx-auto mb-8">
+                <div className="flex justify-between items-center max-w-6xl mx-auto mb-8">
+                    <Link href="/" className="font-serif text-lg text-stone-600 hover:text-stone-900 transition-colors">
+                        YearPlanner
+                    </Link>
                     <SignedOut>
                         <SignInButton mode="modal">
                             <button className="text-sm text-stone-500 hover:text-stone-800 transition-colors">
@@ -356,7 +354,6 @@ export default function YearPlannerCalendar() {
 
                                         return (
                                             <div key={monthName} className="flex items-center h-8">
-                                                {/* Quarter label */}
                                                 <div className="w-8 shrink-0 text-center">
                                                     {isFirstInQ && (
                                                         <span className="text-[10px] font-medium text-stone-300 uppercase tracking-wider">
@@ -365,14 +362,12 @@ export default function YearPlannerCalendar() {
                                                     )}
                                                 </div>
 
-                                                {/* Month label */}
                                                 <div className="w-20 shrink-0 pr-3">
                                                     <span className="text-sm text-stone-600">
                                                         {monthName}
                                                     </span>
                                                 </div>
 
-                                                {/* Days grid */}
                                                 <div className="flex flex-1">
                                                     {Array.from({ length: 31 }, (_, dIdx) => {
                                                         const day = dIdx + 1;
@@ -384,13 +379,12 @@ export default function YearPlannerCalendar() {
                                                         const position = entry?.position;
                                                         const isDragOver = dragOverDate === dateKey;
 
-                                                        // Rounded corners based on position
                                                         let roundedClass = "rounded";
                                                         if (position === 'start') roundedClass = "rounded-l-md rounded-r-none";
                                                         else if (position === 'end') roundedClass = "rounded-r-md rounded-l-none";
                                                         else if (position === 'middle') roundedClass = "rounded-none";
 
-                                                        const bgColor = event ? themeColors[event.theme] : "";
+                                                        const color = event ? getEventColor(event) : null;
 
                                                         return (
                                                             <div
@@ -405,13 +399,13 @@ export default function YearPlannerCalendar() {
                                   flex-1 h-6 flex items-center justify-center mx-[1px]
                                   ${roundedClass} transition-all cursor-pointer
                                   ${isValid ? "" : "opacity-0 pointer-events-none"}
-                                  ${event ? bgColor : "hover:bg-stone-200/50"}
+                                  ${event && color ? color.bg : "hover:bg-stone-200/50"}
                                   ${isDragOver ? "ring-2 ring-stone-500 scale-110 z-10" : ""}
                                 `}
                                                                 title={event ? `${event.title}${event.location ? ` @ ${event.location}` : ""}` : undefined}
                                                             >
                                                                 {isValid && (
-                                                                    <span className={`text-[10px] font-medium ${event ? "text-white" : "text-stone-400"}`}>
+                                                                    <span className={`text-[10px] font-medium ${event && color ? color.text : "text-stone-400"}`}>
                                                                         {DAY_LABELS[dayOfWeek]}
                                                                     </span>
                                                                 )}
@@ -428,15 +422,17 @@ export default function YearPlannerCalendar() {
                     </div>
                 </div>
 
-                {/* Legend */}
-                <div className="mt-8 flex flex-wrap justify-center items-center gap-6">
-                    {Object.entries(THEMES).map(([key, theme]) => (
-                        <div key={key} className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-sm ${themeColors[key]}`} />
-                            <span className="text-xs text-stone-500">{theme.label}</span>
-                        </div>
-                    ))}
-                </div>
+                {/* Location Legend */}
+                {Object.keys(locationColorMap).length > 0 && (
+                    <div className="mt-8 flex flex-wrap justify-center items-center gap-4">
+                        {Object.entries(locationColorMap).map(([location, color]) => (
+                            <div key={location} className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-sm ${color.bg}`} />
+                                <span className="text-xs text-stone-500">{location}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Event Cards (chronologically sorted) */}
                 {Object.keys(events).length > 0 && (
@@ -455,7 +451,7 @@ export default function YearPlannerCalendar() {
                                     <EventCard
                                         key={event.id}
                                         event={event}
-                                        themeColors={themeColors}
+                                        color={getEventColor(event)}
                                         onClick={() => setSelectedViewEvent(event)}
                                     />
                                 ))
@@ -469,7 +465,7 @@ export default function YearPlannerCalendar() {
             {selectedViewEvent && (
                 <EventDetailModal
                     event={selectedViewEvent}
-                    themeColors={themeColors}
+                    color={getEventColor(selectedViewEvent)}
                     onClose={() => setSelectedViewEvent(null)}
                 />
             )}
@@ -482,8 +478,6 @@ export default function YearPlannerCalendar() {
                 setEventTitle={setEventTitle}
                 eventLocation={eventLocation}
                 setEventLocation={setEventLocation}
-                selectedTheme={selectedTheme}
-                setSelectedTheme={setSelectedTheme}
                 startDate={modalStartDate}
                 setStartDate={setModalStartDate}
                 endDate={eventEndDate}
