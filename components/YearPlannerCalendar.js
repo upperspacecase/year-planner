@@ -23,6 +23,8 @@ import {
     parseDateKey
 } from "@/libs/calendarConstants";
 import ReservationModal from "./ReservationModal";
+import EventCard from "./EventCard";
+import EventDetailModal from "./EventDetailModal";
 
 export default function YearPlannerCalendar() {
     const { isSignedIn, isLoaded } = useAuth();
@@ -34,6 +36,7 @@ export default function YearPlannerCalendar() {
     const [editingEvent, setEditingEvent] = useState(null);
     const [modalStartDate, setModalStartDate] = useState(null);
     const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+    const [selectedViewEvent, setSelectedViewEvent] = useState(null);
 
     // Form state
     const [eventTitle, setEventTitle] = useState("");
@@ -426,7 +429,7 @@ export default function YearPlannerCalendar() {
                 </div>
 
                 {/* Legend */}
-                <div className="mt-12 flex flex-wrap justify-center items-center gap-6">
+                <div className="mt-8 flex flex-wrap justify-center items-center gap-6">
                     {Object.entries(THEMES).map(([key, theme]) => (
                         <div key={key} className="flex items-center gap-2">
                             <div className={`w-3 h-3 rounded-sm ${themeColors[key]}`} />
@@ -434,7 +437,42 @@ export default function YearPlannerCalendar() {
                         </div>
                     ))}
                 </div>
+
+                {/* Event Cards (chronologically sorted) */}
+                {Object.keys(events).length > 0 && (
+                    <div className="mt-12">
+                        <h2 className="text-center text-sm font-medium text-stone-400 uppercase tracking-wider mb-6">
+                            Your Reservations
+                        </h2>
+                        <div className="grid gap-3 max-w-lg mx-auto">
+                            {Object.values(events)
+                                .sort((a, b) => {
+                                    const dateA = parseDateKey(a.startDate);
+                                    const dateB = parseDateKey(b.startDate);
+                                    return dateA - dateB;
+                                })
+                                .map(event => (
+                                    <EventCard
+                                        key={event.id}
+                                        event={event}
+                                        themeColors={themeColors}
+                                        onClick={() => setSelectedViewEvent(event)}
+                                    />
+                                ))
+                            }
+                        </div>
+                    </div>
+                )}
             </main>
+
+            {/* Event Detail Modal */}
+            {selectedViewEvent && (
+                <EventDetailModal
+                    event={selectedViewEvent}
+                    themeColors={themeColors}
+                    onClose={() => setSelectedViewEvent(null)}
+                />
+            )}
 
             <ReservationModal
                 showModal={showModal}
