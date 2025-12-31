@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import {
     MONTHS,
     QUARTERS,
@@ -21,7 +21,8 @@ import ReservationModal from "./ReservationModal";
 export default function YearPlannerCalendar() {
     const currentYear = new Date().getFullYear();
     const [year] = useState(new Date().getMonth() >= 9 ? currentYear + 1 : currentYear);
-    const [events, setEvents] = useState(() => getInitialEvents(year));
+    const [events, setEvents] = useState({});
+    const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [modalStartDate, setModalStartDate] = useState(null);
@@ -38,6 +39,70 @@ export default function YearPlannerCalendar() {
 
     const today = new Date();
     const isCurrentYear = today.getFullYear() === year;
+
+    // Fetch events from API on mount
+    useEffect(() => {
+        fetchEvents();
+    }, [year]);
+
+    const fetchEvents = async () => {
+        try {
+            const response = await fetch(`/api/events?year=${year}`);
+            if (response.ok) {
+                const data = await response.json();
+                // If no events in DB, use initial sample events
+                if (Object.keys(data).length === 0) {
+                    const initialEvents = getInitialEvents(year);
+                    // Save initial events to DB
+                    for (const event of Object.values(initialEvents)) {
+                        await saveEventToAPI(event, true);
+                    }
+                    setEvents(initialEvents);
+                } else {
+                    setEvents(data);
+                }
+            } else {
+                // Fallback to local data
+                setEvents(getInitialEvents(year));
+            }
+        } catch (error) {
+            console.error("Error fetching events:", error);
+            setEvents(getInitialEvents(year));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const saveEventToAPI = async (event, isNew = false) => {
+        try {
+            const method = isNew ? "POST" : "PUT";
+            const body = {
+                ...event,
+                year,
+            };
+
+            const response = await fetch("/api/events", {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+
+            if (response.ok) {
+                return await response.json();
+            }
+        } catch (error) {
+            console.error("Error saving event:", error);
+        }
+        return null;
+    };
+
+    const deleteEventFromAPI = async (eventId) => {
+        try {
+            await fetch(`/api/events?id=${eventId}`, { method: "DELETE" });
+        } catch (error) {
+            console.error("Error deleting event:", error);
+        }
+    };
 
     // Stable location color mapping (sorted alphabetically)
     const locationColorMap = useMemo(() => getLocationColorMap(events), [events]);
@@ -82,9 +147,10 @@ export default function YearPlannerCalendar() {
         setShowModal(true);
     };
 
-    const handleSaveEvent = () => {
+    const handleSaveEvent = async () => {
         if (!eventTitle.trim() || !modalStartDate) return;
 
+        const isNew = !editingEvent;
         const eventId = editingEvent?.id || generateEventId();
         const newEvent = {
             id: eventId,
@@ -95,6 +161,7 @@ export default function YearPlannerCalendar() {
             endDate: eventEndDate || modalStartDate
         };
 
+        // Optimistic update
         setEvents(prev => {
             const updated = { ...prev };
             if (editingEvent) {
@@ -105,17 +172,36 @@ export default function YearPlannerCalendar() {
         });
 
         closeModal();
-    };
 
-    const handleDeleteEvent = () => {
-        if (editingEvent) {
+        // Save to API
+        const savedEvent = await saveEventToAPI(newEvent, isNew);
+        if (savedEvent && savedEvent.id !== eventId) {
+            // Update with server-generated ID
             setEvents(prev => {
                 const updated = { ...prev };
-                delete updated[editingEvent.id];
+                delete updated[eventId];
+                updated[savedEvent.id] = savedEvent;
                 return updated;
             });
         }
-        closeModal();
+    };
+
+    const handleDeleteEvent = async () => {
+        if (editingEvent) {
+            const eventId = editingEvent.id;
+
+            // Optimistic update
+            setEvents(prev => {
+                const updated = { ...prev };
+                delete updated[eventId];
+                return updated;
+            });
+
+            closeModal();
+
+            // Delete from API
+            await deleteEventFromAPI(eventId);
+        }
     };
 
     const closeModal = () => {
@@ -151,7 +237,7 @@ export default function YearPlannerCalendar() {
         setDragOverDate(null);
     };
 
-    const onDrop = (e, destinationDateKey) => {
+    const onDrop = async (e, destinationDateKey) => {
         e.preventDefault();
         const { eventId, event, clickOffset } = dragSourceRef.current;
 
@@ -177,18 +263,32 @@ export default function YearPlannerCalendar() {
             return;
         }
 
+        const updatedEvent = {
+            ...event,
+            startDate: newStartDate,
+            endDate: newEndDate
+        };
+
+        // Optimistic update
         setEvents(prev => ({
             ...prev,
-            [eventId]: {
-                ...event,
-                startDate: newStartDate,
-                endDate: newEndDate
-            }
+            [eventId]: updatedEvent
         }));
 
         setDragOverDate(null);
         dragSourceRef.current = { eventId: null, event: null, clickOffset: 0 };
+
+        // Save to API
+        await saveEventToAPI(updatedEvent, false);
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#fcfbf7]">
+                <div className="text-stone-400">Loading calendar...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen pb-20 selection:bg-amber-200 bg-[#fcfbf7]">
@@ -289,11 +389,11 @@ export default function YearPlannerCalendar() {
                                                                 >
                                                                     {isValid && (
                                                                         <span className={`
-                                      text-[8px] font-bold z-10 truncate max-w-full px-0.5
+                                      text-[6px] font-semibold z-10 leading-tight text-center px-0.5 line-clamp-2 overflow-hidden
                                       ${event ? THEMES[event.theme].textColor : "text-stone-300"}
                                       ${isToday && !event ? "text-amber-500" : ""}
                                     `}>
-                                                                            {event ? event.title.charAt(0).toUpperCase() : DAY_LABELS[dayOfWeek]}
+                                                                            {event ? event.title : DAY_LABELS[dayOfWeek]}
                                                                         </span>
                                                                     )}
                                                                     {event && event.location && (
